@@ -7,26 +7,33 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Servidor ativo! ✅");
+  res.send("✅ Proxy ativo e pronto para POST!");
 });
 
 app.post("/", async (req, res) => {
   try {
     const { key } = req.body;
+
     if (!key) {
-      return res.status(400).json({ error: "Chave (key) não enviada." });
+      return res.status(400).json({ error: "Chave não enviada no corpo da requisição." });
     }
 
-    // Faz a requisição para o SSTV usando a chave recebida
-    const response = await fetch(`https://sstv.center/test.php?key=${key}`);
-    const data = await response.text();
+    const targetUrl = `https://sstv.center/test.php?key=${key}`;
+    console.log("🔗 Requisição para:", targetUrl);
 
-    res.status(200).send(data);
+    const response = await fetch(targetUrl, {
+      method: "GET",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+
+    const text = await response.text();
+    return res.status(200).send(text);
   } catch (error) {
-    console.error("Erro no proxy:", error);
-    res.status(500).json({ error: "Erro ao processar requisição." });
+    console.error("❌ Erro no servidor:", error);
+    return res.status(500).json({ error: "Erro interno no servidor." });
   }
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`Proxy ativo na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+
