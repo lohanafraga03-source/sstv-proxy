@@ -1,47 +1,52 @@
 import express from "express";
 import cors from "cors";
+import fetch from "node-fetch";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔹 Rota GET — só pra confirmar se o proxy tá ativo
+// 🔹 Verificação básica
 app.get("/", (req, res) => {
-  res.send("✅ Proxy ativo e pronto para POST!");
+  res.send("✅ Proxy ativo e pronto para gerar links SSTV!");
 });
 
-// 🔹 Rota POST — ManyChat vai chamar aqui
+// 🔹 Rota POST — chamada pelo ManyChat
 app.post("/", async (req, res) => {
-  console.log("📩 Requisição recebida do ManyChat:", req.body);
-
   try {
-    // Exemplo: você pode pegar algum dado do ManyChat, se quiser
-    // const { name, phone } = req.body;
+    console.log("📩 Requisição recebida:", req.body);
 
-    // Aqui é o link do teste IPTV (coloca o real depois)
-    const linkGerado = "https://sstv.center/gerar-teste-exemplo";
+    // 🔑 Chave da sua API SSTV
+    const API_KEY = "70d96e0c-8848-4c28-b429-41487fc7421e";
 
-    // Retorna o JSON no formato correto pro ManyChat
+    // 🔗 Faz requisição ao endpoint da SSTV
+    const response = await fetch(`https://sstv.center/test.php?key=${API_KEY}`);
+    const data = await response.text(); // SSTV geralmente responde em texto (não JSON)
+
+    // 🔍 Se quiser validar o retorno antes, pode inspecionar 'data'
+    console.log("🔗 Resposta da SSTV:", data);
+
+    // 🔹 Retorna o link pro ManyChat
     res.status(200).json({
       version: "v2",
       content: {
         messages: [
           {
             type: "text",
-            text: `🎉 Seu link de teste foi gerado com sucesso! Acesse abaixo: \n${linkGerado}`,
+            text: `🎉 Seu link de teste foi gerado com sucesso!\n${data}`,
           },
         ],
       },
     });
   } catch (error) {
-    console.error("Erro ao processar requisição:", error);
+    console.error("⚠️ Erro ao gerar link:", error);
     res.status(500).json({
       version: "v2",
       content: {
         messages: [
           {
             type: "text",
-            text: "⚠️ Ocorreu um erro ao gerar o link. Tente novamente em instantes.",
+            text: "❌ Erro ao gerar o link, tente novamente em instantes.",
           },
         ],
       },
@@ -49,6 +54,6 @@ app.post("/", async (req, res) => {
   }
 });
 
-// 🔹 Inicia o servidor
+// 🚀 Inicia servidor
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
