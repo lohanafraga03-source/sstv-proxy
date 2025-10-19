@@ -1,73 +1,62 @@
 import express from "express";
 import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-app.get("/", (req, res) => {
-  res.send("✅ Proxy ativo e pronto para POST!");
-});
+// URL base da SSTV
+const SSTV_BASE_URL = "https://sstv.center/gerar-teste-exemplo";
 
+// Rota principal
 app.post("/", async (req, res) => {
   try {
     const { key } = req.body;
 
     if (!key) {
-      return res.status(400).json({ error: "Chave não fornecida!" });
+      return res.status(400).json({ error: "Chave (key) não fornecida." });
     }
 
-    const response = await fetch(`https://sstv.center/test.php?key=${key}`);
-    const html = await response.text();
+    console.log("🔑 Chave recebida:", key);
 
-    // Extrai dados principais com expressões regulares
-    const usuario = html.match(/Usuário:\s*<\/b>\s*([A-Za-z0-9]+)/i)?.[1] || "Não encontrado";
-    const senha = html.match(/Senha:\s*<\/b>\s*([A-Za-z0-9]+)/i)?.[1] || "Não encontrada";
-    const dns1 = html.match(/Url DNS1:\s*<\/b>\s*(http[^\s<]+)/i)?.[1] || "Não encontrado";
-    const dns2 = html.match(/Url DNS2:\s*<\/b>\s*(http[^\s<]+)/i)?.[1] || "Não encontrado";
-    const loja1 = html.match(/Loja1:\s*(https[^\s<]+)/i)?.[1] || "Não encontrada";
-    const loja2 = html.match(/Loja2:\s*(https[^\s<]+)/i)?.[1] || "Não encontrada";
-    const apk = html.match(/Apk STV\.1:\s*\(([^)]+)\)/i)?.[1] || "Não encontrado";
-
-    // Monta texto formatado
-    const texto = `
-🎉 *Teste criado com sucesso!*
-
-📺 *Usuário:* ${usuario}
-🔑 *Senha:* ${senha}
-🌐 *DNS 1:* ${dns1}
-🌐 *DNS 2:* ${dns2}
-🏪 *Loja 1:* ${loja1}
-🏪 *Loja 2:* ${loja2}
-📲 *APK:* ${apk}
-`.trim();
-
-    res.status(200).json({
-      version: "v2",
-      content: {
-        messages: [
-          {
-            type: "text",
-            text: texto
-          }
-        ]
-      }
+    // Faz a requisição para a SSTV
+    const response = await fetch(SSTV_BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ key }),
     });
 
+    const data = await response.text();
+
+    // Verifica se o retorno é um link válido
+    const linkMatch = data.match(/https?:\/\/[^\s"]+/);
+    const link = linkMatch ? linkMatch[0] : null;
+
+    if (!link) {
+      console.error("❌ Nenhum link encontrado na resposta:", data);
+      return res.status(500).json({
+        error: "Não foi possível gerar o link de teste automaticamente.",
+        resposta: data,
+      });
+    }
+
+    console.log("✅ Link encontrado:", link);
+
+    // Retorna o link para o ManyChat
+    res.status(200).json({ link: link.trim() });
+
   } catch (error) {
-    console.error("Erro ao gerar teste:", error);
+    console.error("⚠️ Erro ao gerar o teste:", error);
     res.status(500).json({
-      version: "v2",
-      content: {
-        messages: [
-          {
-            type: "text",
-            text: "❌ Erro ao gerar o teste, tente novamente mais tarde."
-          }
-        ]
-      }
+      error: "Falha ao gerar o teste IPTV.",
+      detalhes: error.message,
     });
   }
 });
 
+// Inicializa o servidor
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
