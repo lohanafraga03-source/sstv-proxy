@@ -27,17 +27,9 @@ app.post("/", async (req, res) => {
     console.log("🔗 Resposta da SSTV:", data);
 
     // 🔹 Retorna o link pro ManyChat
-    res.status(200).json({
-      version: "v2",
-      content: {
-        messages: [
-          {
-            type: "text",
-            text: `🎉 Seu link de teste foi gerado com sucesso!\n${data}`,
-          },
-        ],
-      },
-    });
+   res.status(200).json({
+  link: "https://sstv.center/gerar-teste-exemplo"
+});
   } catch (error) {
     console.error("⚠️ Erro ao gerar link:", error);
     res.status(500).json({
