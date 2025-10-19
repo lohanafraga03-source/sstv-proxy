@@ -1,43 +1,67 @@
 import express from "express";
 import fetch from "node-fetch";
-import bodyParser from "body-parser";
 
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
-const API_KEY = process.env.API_KEY; // sua chave da SSTV vai lá no Render (Environment Variables)
-
-// Rota principal — só pra verificar se o proxy tá ativo
 app.get("/", (req, res) => {
   res.send("✅ Proxy ativo e pronto para POST!");
 });
 
-// Rota que o ManyChat vai chamar
 app.post("/", async (req, res) => {
   try {
-    // Faz requisição ao endpoint da SSTV
-    const response = await fetch(`https://sstv.center/test.php?key=${API_KEY}`);
-    const data = await response.text(); // SSTV geralmente responde com texto (não JSON)
+    const { key } = req.body;
 
-    // (Opcional) Log pra debug no Render — ajuda a ver o retorno exato
-    console.log("🔍 Resposta da SSTV:", data);
+    if (!key) {
+      return res.status(400).json({ error: "Chave não fornecida!" });
+    }
 
-    // Retorna o link real pro ManyChat
+    const response = await fetch(`https://sstv.center/test.php?key=${key}`);
+    const html = await response.text();
+
+    // Extrai dados principais com expressões regulares
+    const usuario = html.match(/Usuário:\s*<\/b>\s*([A-Za-z0-9]+)/i)?.[1] || "Não encontrado";
+    const senha = html.match(/Senha:\s*<\/b>\s*([A-Za-z0-9]+)/i)?.[1] || "Não encontrada";
+    const dns1 = html.match(/Url DNS1:\s*<\/b>\s*(http[^\s<]+)/i)?.[1] || "Não encontrado";
+    const dns2 = html.match(/Url DNS2:\s*<\/b>\s*(http[^\s<]+)/i)?.[1] || "Não encontrado";
+    const loja1 = html.match(/Loja1:\s*(https[^\s<]+)/i)?.[1] || "Não encontrada";
+    const loja2 = html.match(/Loja2:\s*(https[^\s<]+)/i)?.[1] || "Não encontrada";
+    const apk = html.match(/Apk STV\.1:\s*\(([^)]+)\)/i)?.[1] || "Não encontrado";
+
+    // Monta texto formatado
+    const texto = `
+🎉 *Teste criado com sucesso!*
+
+📺 *Usuário:* ${usuario}
+🔑 *Senha:* ${senha}
+🌐 *DNS 1:* ${dns1}
+🌐 *DNS 2:* ${dns2}
+🏪 *Loja 1:* ${loja1}
+🏪 *Loja 2:* ${loja2}
+📲 *APK:* ${apk}
+`.trim();
+
     res.status(200).json({
-      link: data.trim() // remove espaços ou quebras de linha
+      version: "v2",
+      content: {
+        messages: [
+          {
+            type: "text",
+            text: texto
+          }
+        ]
+      }
     });
 
   } catch (error) {
-    console.error("⚠️ Erro ao gerar link:", error);
-
-    // Retorno pro ManyChat caso algo dê errado
+    console.error("Erro ao gerar teste:", error);
     res.status(500).json({
       version: "v2",
       content: {
         messages: [
           {
             type: "text",
-            text: "❌ Erro ao gerar o link, tente novamente em instantes."
+            text: "❌ Erro ao gerar o teste, tente novamente mais tarde."
           }
         ]
       }
@@ -45,8 +69,5 @@ app.post("/", async (req, res) => {
   }
 });
 
-// Porta padrão (Render define automaticamente)
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
