@@ -1,51 +1,52 @@
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
+import bodyParser from "body-parser";
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// 🔹 Verificação básica
+const API_KEY = process.env.API_KEY; // sua chave da SSTV vai lá no Render (Environment Variables)
+
+// Rota principal — só pra verificar se o proxy tá ativo
 app.get("/", (req, res) => {
-  res.send("✅ Proxy ativo e pronto para gerar links SSTV!");
+  res.send("✅ Proxy ativo e pronto para POST!");
 });
 
-// 🔹 Rota POST — chamada pelo ManyChat
+// Rota que o ManyChat vai chamar
 app.post("/", async (req, res) => {
   try {
-    console.log("📩 Requisição recebida:", req.body);
-
-    // 🔑 Chave da sua API SSTV
-    const API_KEY = "70d96e0c-8848-4c28-b429-41487fc7421e";
-
-    // 🔗 Faz requisição ao endpoint da SSTV
+    // Faz requisição ao endpoint da SSTV
     const response = await fetch(`https://sstv.center/test.php?key=${API_KEY}`);
-    const data = await response.text(); // SSTV geralmente responde em texto (não JSON)
+    const data = await response.text(); // SSTV geralmente responde com texto (não JSON)
 
-    // 🔍 Se quiser validar o retorno antes, pode inspecionar 'data'
-    console.log("🔗 Resposta da SSTV:", data);
+    // (Opcional) Log pra debug no Render — ajuda a ver o retorno exato
+    console.log("🔍 Resposta da SSTV:", data);
 
-    // 🔹 Retorna o link pro ManyChat
-   res.status(200).json({
-  link: "https://sstv.center/gerar-teste-exemplo"
-});
+    // Retorna o link real pro ManyChat
+    res.status(200).json({
+      link: data.trim() // remove espaços ou quebras de linha
+    });
+
   } catch (error) {
     console.error("⚠️ Erro ao gerar link:", error);
+
+    // Retorno pro ManyChat caso algo dê errado
     res.status(500).json({
       version: "v2",
       content: {
         messages: [
           {
             type: "text",
-            text: "❌ Erro ao gerar o link, tente novamente em instantes.",
-          },
-        ],
-      },
+            text: "❌ Erro ao gerar o link, tente novamente em instantes."
+          }
+        ]
+      }
     });
   }
 });
 
-// 🚀 Inicia servidor
+// Porta padrão (Render define automaticamente)
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
